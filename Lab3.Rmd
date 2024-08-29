@@ -1,0 +1,642 @@
+---
+title: "Lab 3 - Markov Chains"
+author: "Jakob Balkovec"
+date: "2024-05-24"
+output:
+  html_document:
+    theme: cerulean
+    toc: true
+    toc_depth: 3
+    number_sections: false
+    fig_width: 7
+    fig_height: 5
+    fig_caption: true
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+Markov chains are used model systems that change from state to state when the current state depends only on the previous state. Here, you will consider the movement of a population and the change in weather, and use linear algebra is used to predict future conditions. Along the way, you will be introduced to the concept of a steady-state vector, which is an example an eigenvector (with eigenvalue 1), which is an important idea that we will study in Chapter 5.
+
+# Problem 1
+
+There are no rural areas in the Land of Oz, only suburbs and cities. Each year $5%$ of the city population moves to the suburbs, and $95$% stay in the city. Also, each year $3$% of the suburban population moves to the city, while the other $97$% stay in the suburbs.
+Suppose in the year $2020$, there were $6000$ people living in the city and $4000$ people living in the suburbs. For each non-negative integer $k$, let the vector $xk$ be the vector in $R_2$ where the first coordinate is the number of people living in the city and the second coordinate is the number of people living in the suburbs (where $k$ is the number of years after the year $2020$).
+
+So \( x_0 = (6000, 4000) \). In the year 2021, based on the above information, there were:
+
+$$ (.95)(6000) + (.03)(4000) = 5820 $$
+
+people living in the city, and
+
+$$ (.05)(6000) + (.97)(4000) = 4180 $$
+
+people living in the suburbs. Thus, \( x_1 = (5820, 4180) \). We can use linear algebra to predict the size of the future populations in the suburbs and cities in the Land of Oz.
+
+Let \( A \) denote the following transition matrix (a square matrix with nonnegative entries such that the sum of the entries of each column is equal to 1):
+
+$$
+A = \begin{pmatrix} 0.95 & 0.03 \\ 0.05 & 0.97 \end{pmatrix}
+$$
+
+Then,
+
+$$
+A x_0 = \begin{pmatrix} 0.95 & 0.03 \\ 0.05 & 0.97 \end{pmatrix} \begin{pmatrix} 6000 \\ 4000 \end{pmatrix} = \begin{pmatrix} (.95)(6000) + (.03)(4000) \\ (.05)(6000) + (.97)(4000) \end{pmatrix} = \begin{pmatrix} 5820 \\ 4180 \end{pmatrix} = x_1
+$$
+
+### Part (a) - What is \( x_2 \)?
+
+(Remember, each year 5% of the city population moves to the suburbs, and 95% stay in the city. And each year 3% of the suburban population moves to the city, while the other 97% stay in the suburbs.)
+
+```{r echo=FALSE}
+
+suppressPackageStartupMessages({
+  library(dplyr)
+  library(readxl)
+  library(knitr)
+  library(expm)
+})
+
+# Pre: Assume the matrix is always a 2x1 matrix (M_21)
+print_matrix <- function(matrix, name) {
+  cat("Matrix for (", name, "): ", "[", round(matrix[1][1], digits = 0), ";", round(matrix[2][1], digits = 0), "]\n")
+}
+
+calculate_xk <- function(A, x0, k) {
+  A %^% k %*% x0
+}
+```
+
+$$
+x_2 = A x_1 = A (A x_0) = A^2 x_0
+$$
+Here is the `R` code:
+
+```{r}
+x0 <- c(6000, 4000)
+
+# transition matrix
+A <- matrix(c(0.95, 0.05, 0.03, 0.97), nrow = 2, byrow = TRUE)
+
+# Calculate x1, x2
+x1 <- A %*% x0
+x2 <- A %*% x1
+
+# Display results
+print_matrix(x2, "x2")
+```
+
+### Part (b) - Formula for \(x_2\) and \(x_3\)
+
+Can you give a formula for $x_2$ in terms of the matrix $A$ and $x_0$? How about for $x_3$? Explain your reasoning.
+
+- The general formula for \(x_k\) in terms of the matrix $A$ and the initial vector \(x_0\) is:<br>
+
+$$
+x_k = A^{k} x_0
+$$
+Following that, we can really give the formula for any \(x\).
+
+$$
+\text{For } x_3\text{:}\\x_3 = A^{3}x_0
+$$
+Here is the `R` code:
+
+```{r}
+x3 <- calculate_xk(A, x0, 3)
+print_matrix(x3, "x3")
+```
+
+### Part (c) - Population in the Year 2025
+
+Approximately how many people will be living in the city in the year 2025? How many people will be living in the suburbs in the year 2025? Show work and explain your reasoning.
+
+- To find the population in 2025, which is 5 years after 2020 (\( k = 5 \)):
+
+$$
+x_5 = A^5 x_0
+$$
+Here is the `R` code:
+
+```{r}
+x5 <- calculate_xk(A, x0, 5)
+print_matrix(x5, "x5")
+```
+
+Based on the result obtained above, we can conclude that $5574$ people will be living in the city and $4256$ people will be living in the suburbs.
+
+### Part (d) - Population for Given Initial Conditions
+
+Suppose in a given year there are $3750$ people living in the city and $6250$ people living in the suburbs. How many people will be living in the city and how many in the suburbs the following year? Two years later?
+
+Given:
+
+$$
+x = \begin{pmatrix} 3750 \\ 6250 \end{pmatrix}
+$$
+
+Calculate the population for the next year and two years later:
+
+For the next year:
+
+$$
+x_{1} = A x
+$$
+
+For two years later:
+
+$$
+x_{2} = A^2 x
+$$
+Here is the `R` code:
+
+```{r}
+matrix <- c(3750, 6250)
+
+x0 <- calculate_xk(A, matrix, 0)
+x1 <- calculate_xk(A, matrix, 1)
+x2 <- calculate_xk(A, matrix, 2)
+```
+Here is the `R` code:
+
+```{r}
+# Table
+
+results <- data.frame(
+  Year = c("1st", "2nd", "3rd"),
+  City = c(x0[1], x1[1], x2[1]),
+  Suburbs = c(x0[2], x1[2], x2[2])
+)
+
+kable(results, col.names = c("Year", "City Population", "Suburbs Population"), caption = "Population over the years")
+```
+
+### Part (e) - Steady-State Vector
+
+To find the steady-state vector \( s \):
+
+Solve \( (A - I)v = 0 \) where \( I \) is the identity matrix.
+
+A steady-state vector \( s \) satisfies:
+
+$$
+A s = s
+$$
+
+which can be written as:
+
+$$
+(A - I)s = 0
+$$
+
+This implies that \( s \) is an eigen-vector of \( A \) corresponding to the eigenvalue 1.
+
+***
+
+# Problem 2
+
+Here is a method for finding a steady-state vector \( \mathbf{s} \) as in Problem 1(e). If \( A \) is a square matrix and \( \mathbf{v} \) is a nonzero vector such that \( A\mathbf{v} = \mathbf{v} \), then \( \mathbf{v} \) is a steady-state vector for \( A \). It is also called an eigenvector of \( A \) with eigenvalue 1 (more on this important topic in Sections 5.1 and 5.2 of your textbook, which we will cover at the end of the course). 
+
+If we wish to find \( \mathbf{v} \), we can solve the equation \( A\mathbf{v} = \mathbf{v} \) by rewriting it as \( A\mathbf{v} - \mathbf{v} = \mathbf{0} \), and then as \( (A - I)\mathbf{v} = \mathbf{0} \). Now we simply need to solve the homogeneous system \( (A - I)\mathbf{v} = \mathbf{0} \). (You know how to do this! Don’t be thrown off by the fact that our matrix is now \( A - I \) instead of just \( A \).)
+
+Use this idea to find a vector \( \mathbf{v} \) such that \( A\mathbf{v} = \mathbf{v} \), where \( A \) is the matrix
+
+\[
+A = \begin{bmatrix}
+0 & \frac{1}{3} & \frac{1}{3} \\
+0 & \frac{2}{3} & \frac{1}{3} \\
+1 & 0 & \frac{1}{3}
+\end{bmatrix}.
+\]
+
+To find \( \mathbf{v} \), solve \( (A - I)\mathbf{v} = \mathbf{0} \):
+
+\[
+A - I = \begin{bmatrix}
+0 & \frac{1}{3} & \frac{1}{3} \\
+0 & \frac{2}{3} & \frac{1}{3} \\
+1 & 0 & \frac{1}{3}
+\end{bmatrix} - \begin{bmatrix}
+1 & 0 & 0 \\
+0 & 1 & 0 \\
+0 & 0 & 1
+\end{bmatrix} = \begin{bmatrix}
+-1 & \frac{1}{3} & \frac{1}{3} \\
+0 & -\frac{1}{3} & \frac{1}{3} \\
+1 & 0 & -\frac{2}{3}
+\end{bmatrix}.
+\]
+
+Now solve the system \( (A - I)\mathbf{v} = \mathbf{0} \):
+
+\[
+\begin{bmatrix}
+-1 & \frac{1}{3} & \frac{1}{3} \\
+0 & -\frac{1}{3} & \frac{1}{3} \\
+1 & 0 & -\frac{2}{3}
+\end{bmatrix}
+\begin{bmatrix}
+v_1 \\
+v_2 \\
+v_3
+\end{bmatrix} =
+\begin{bmatrix}
+0 \\
+0 \\
+0
+\end{bmatrix}.
+\]
+
+This simplifies to the system of equations:
+
+\[
+\begin{cases}
+- v_1 + \frac{1}{3}v_2 + \frac{1}{3}v_3 = 0 \\
+\ \ \ \ \ \ \  - \frac{1}{3}v_2 + \frac{1}{3}v_3 = 0 \\
+v_1 \ \ \ \ \ \ \ \ \ \ \ \ \ \ \  - \frac{2}{3}v_3 = 0
+\end{cases}
+\]
+
+From the second equation:
+
+\[
+-\frac{1}{3}v_2 + \frac{1}{3}v_3 = 0 \implies v_2 = v_3.
+\]
+
+From the third equation:
+
+\[
+v_1 - \frac{2}{3}v_3 = 0 \implies v_1 = \frac{2}{3}v_3.
+\]
+
+Let \( v_3 = t \), where \( t \) is a parameter. Then:
+
+\[
+v_1 = \frac{2}{3}t, \quad v_2 = t, \quad v_3 = t.
+\]
+
+Thus, a solution to \( (A - I)\mathbf{v} = 0 \) is:
+
+\[
+\mathbf{v} = t \begin{bmatrix}
+\frac{2}{3} \\
+1 \\
+1
+\end{bmatrix}.
+\]
+
+Picking \( t = 1 \) for simplicity. Then a steady-state vector \( \mathbf{s} \) is:
+
+\[
+\mathbf{s} = \begin{bmatrix}
+\frac{2}{3} \\
+1 \\
+1
+\end{bmatrix}.
+\]
+
+Verify that \( A\mathbf{s} = \mathbf{s} \):
+
+\[
+A \begin{bmatrix}
+\frac{2}{3} \\
+1 \\
+1
+\end{bmatrix} =
+\begin{bmatrix}
+0 & \frac{1}{3} & \frac{1}{3} \\
+0 & \frac{2}{3} & \frac{1}{3} \\
+1 & 0 & \frac{1}{3}
+\end{bmatrix}
+\begin{bmatrix}
+\frac{2}{3} \\
+1 \\
+1
+\end{bmatrix} =
+\begin{bmatrix}
+\frac{1}{3} \cdot 1 + \frac{1}{3} \cdot 1 \\
+\frac{2}{3} \cdot 1 + \frac{1}{3} \cdot 1 \\
+1 \cdot \frac{2}{3} + \frac{1}{3} \cdot 1
+\end{bmatrix} =
+\begin{bmatrix}
+\frac{2}{3} \\
+1 \\
+1
+\end{bmatrix} = \mathbf{s}.
+\]
+
+Therefore, \( \mathbf{s} = \begin{bmatrix} \frac{2}{3} \\ 1 \\ 1 \end{bmatrix} \) is a steady-state vector.
+
+Next, we'll find a probability vector \( \mathbf{p} \) that is a steady-state vector, where the entries are nonnegative and sum to 1. Let \( \mathbf{p} = \begin{bmatrix} p_1 \\ p_2 \\ p_3 \end{bmatrix} \) such that:
+
+\[
+A\mathbf{p} = \mathbf{p}, \quad \text{and} \quad p_1 + p_2 + p_3 = 1.
+\]
+
+Using the relationships from above, where \( p_1 = \frac{2}{3}p_3 \) and \( p_2 = p_3 \), we have:
+
+\[
+\frac{2}{3}p_3 + p_3 + p_3 = 1 \implies \frac{5}{3}p_3 = 1 \implies p_3 = \frac{3}{5}.
+\]
+
+Thus,
+
+\[
+p_1 = \frac{2}{3} \cdot \frac{3}{5} = \frac{2}{5}, \quad p_2 = \frac{3}{5}, \quad p_3 = \frac{3}{5}.
+\]
+
+Therefore, the probability vector is:
+
+\[
+\mathbf{p} = \begin{bmatrix}
+\frac{2}{5} \\
+\frac{3}{5} \\
+\frac{3}{5}
+\end{bmatrix}.
+\]
+
+Verify that \( A\mathbf{p} = \mathbf{p} \):
+
+\[
+A \begin{bmatrix}
+\frac{2}{5} \\
+\frac{3}{5} \\
+\frac{3}{5}
+\end{bmatrix} =
+\begin{bmatrix}
+0 & \frac{1}{3} & \frac{1}{3} \\
+0 & \frac{2}{3} & \frac{1}{3} \\
+1 & 0 & \frac{1}{3}
+\end{bmatrix}
+\begin{bmatrix}
+\frac{2}{5} \\
+\frac{3}{5} \\
+\frac{3}{5}
+\end{bmatrix} =
+\begin{bmatrix}
+0 \cdot \frac{2}{5} + \frac{1}{3} \cdot \frac{3}{5} + \frac{1}{3} \cdot \frac{3}{5} \\
+0 \cdot \frac{2}{5} + \frac{2}{3} \cdot \frac{3}{5} + \frac{1}{3} \cdot \frac{3}{5} \\
+1 \cdot \frac{2}{5} + 0 \cdot \frac{3}{5} + \frac{1}{3} \cdot \frac{3}{5}
+\end{bmatrix} =
+\begin{bmatrix}
+\frac{1}{5} + \frac{1}{5} \\
+\frac{2}{5} + \frac{1}{5} \\
+\frac{2}{5} + \frac{1}{5}
+\end{bmatrix} =
+\begin{bmatrix}
+\frac{2}{5} \\
+\frac{3}{5} \\
+\frac{3}{5}
+\end{bmatrix} = \mathbf{p}.
+\]
+
+Therefore, \( \mathbf{p} = \begin{bmatrix} \frac{2}{5} \\ \frac{3}{5} \\ \frac{3}{5} \end{bmatrix} \) is a steady-state vector and a probability vector.
+
+***
+
+# Problem 3
+
+Next we will investigate the weather in the Land of Oz. Here there are only three kinds of weather – sunny, cloudy, and rainy – and it is never sunny two days in a row. We cannot determine exactly what the weather will be on a given day, but we can give the probability of sun, clouds, or rain on a given day because the weather follows the following behavior:
+
+- After a sunny day, the next day is equally likely to be cloudy or rainy.
+- After a cloudy day, there is a 1/4 probability that the next day will be sunny, 1/4 probability that it will be cloudy, and 1/2 probability that it will be rainy.
+- After a rainy day, there is a 1/4 probability that the next day will be sunny, 1/2 probability that it will be cloudy, and 1/4 probability that it will be rainy.
+
+Based on this information, the weather in the Land of Oz can be modeled by a Markov chain with transition matrix
+
+\[
+P = \begin{bmatrix}
+0 & \frac{1}{4} & \frac{1}{4} \\
+\frac{1}{2} & \frac{1}{4} & \frac{1}{2} \\
+\frac{1}{2} & \frac{1}{2} & \frac{1}{4}
+\end{bmatrix},
+\]
+
+where the columns and rows give the probabilities from sunny, cloudy, and rainy as stipulated above. Suppose that on day 0 the weather is rainy. That is,
+
+\[
+\mathbf{x}_0 = \begin{bmatrix}
+0 \\
+0 \\
+1
+\end{bmatrix}.
+\]
+
+Then the probabilities for the weather the next day are given by
+
+\[
+\mathbf{x}_1 = P \mathbf{x}_0 = \begin{bmatrix}
+0 & \frac{1}{4} & \frac{1}{4} \\
+\frac{1}{2} & \frac{1}{4} & \frac{1}{2} \\
+\frac{1}{2} & \frac{1}{2} & \frac{1}{4}
+\end{bmatrix}
+\begin{bmatrix}
+0 \\
+0 \\
+1
+\end{bmatrix}
+= \begin{bmatrix}
+\frac{1}{4} \\
+\frac{1}{2} \\
+\frac{1}{4}
+\end{bmatrix}.
+\]
+
+That is, there is a 1/4 probability that the next day will be sunny, 1/2 probability that it will be cloudy, and 1/4 probability that it will be rainy, exactly as stipulated above. Note that the vectors \( \mathbf{x}_0 \) and \( \mathbf{x}_1 \) are examples of probability vectors, as defined in Problem 2. In this problem, all the vectors that you deal with should be probability vectors.
+
+### Part a
+
+Find the probabilities for sun, clouds, and rain for the next day. Find the probabilities for the weather a week after the initial rainy day. Find the probabilities for the weather two weeks after the initial rainy day. Be sure to show your work and explain how you got your answers.
+
+To find the probabilities for the weather a week after the initial rainy day, we need to compute \( P^7 \mathbf{x}_0 \). 
+
+First, we calculate \( P^2 \):
+
+\[
+P^2 = P \cdot P = \begin{bmatrix}
+0 & \frac{1}{4} & \frac{1}{4} \\
+\frac{1}{2} & \frac{1}{4} & \frac{1}{2} \\
+\frac{1}{2} & \frac{1}{2} & \frac{1}{4}
+\end{bmatrix} \begin{bmatrix}
+0 & \frac{1}{4} & \frac{1}{4} \\
+\frac{1}{2} & \frac{1}{4} & \frac{1}{2} \\
+\frac{1}{2} & \frac{1}{2} & \frac{1}{4}
+\end{bmatrix} = \begin{bmatrix}
+\frac{1}{4} & \frac{1}{4} & \frac{1}{8} \\
+\frac{1}{4} & \frac{3}{8} & \frac{3}{8} \\
+\frac{1}{4} & \frac{3}{8} & \frac{3}{8}
+\end{bmatrix}.
+\]
+
+Next, we calculate \( P^4 \) by squaring \( P^2 \):
+
+\[
+P^4 = P^2 \cdot P^2 = \begin{bmatrix}
+\frac{1}{4} & \frac{1}{4} & \frac{1}{8} \\
+\frac{1}{4} & \frac{3}{8} & \frac{3}{8} \\
+\frac{1}{4} & \frac{3}{8} & \frac{3}{8}
+\end{bmatrix} \begin{bmatrix}
+\frac{1}{4} & \frac{1}{4} & \frac{1}{8} \\
+\frac{1}{4} & \frac{3}{8} & \frac{3}{8} \\
+\frac{1}{4} & \frac{3}{8} & \frac{3}{8}
+\end{bmatrix} = \begin{bmatrix}
+\frac{3}{16} & \frac{7}{32} & \frac{7}{32} \\
+\frac{7}{32} & \frac{13}{32} & \frac{13}{32} \\
+\frac{7}{32} & \frac{13}{32} & \frac{13}{32}
+\end{bmatrix}.
+\]
+
+Finally, we calculate \( P^7 \) by multiplying \( P^4 \) and \( P^3 \):
+
+\[
+P^7 = P^4 \cdot P^3 = \begin{bmatrix}
+\frac{3}{16} & \frac{7}{32} & \frac{7}{32} \\
+\frac{7}{32} & \frac{13}{32} & \frac{13}{32} \\
+\frac{7}{32} & \frac{13}{32} & \frac{13}{32}
+\end{bmatrix} \begin{bmatrix}
+0 & \frac{1}{4} & \frac{1}{4} \\
+\frac{1}{2} & \frac{1}{4} & \frac{1}{2} \\
+\frac{1}{2} & \frac{1}{2} & \frac{1}{4}
+\end{bmatrix} = \begin{bmatrix}
+\frac{11}{64} & \frac{19}{64} & \frac{19}{64} \\
+\frac{19}{64} & \frac{23}{64} & \frac{23}{64} \\
+\frac{19}{64} & \frac{23}{64} & \frac{23}{64}
+\end{bmatrix}.
+\]
+
+Now, we can find the weather probabilities a week after the initial rainy day:
+
+\[
+\mathbf{x}_7 = P^7 \mathbf{x}_0 = \begin{bmatrix}
+\frac{11}{64} & \frac{19}{64} & \frac{19}{64} \\
+\frac{19}{64} & \frac{23}{64} & \frac{23}{64} \\
+\frac{19}{64} & \frac{23}{64} & \frac{23}{64}
+\end{bmatrix}
+\begin{bmatrix}
+0 \\
+0 \\
+1
+\end{bmatrix}
+= \begin{bmatrix}
+\frac{19}{64} \\
+\frac{23}{64} \\
+\frac{23}{64}
+\end{bmatrix}.
+\]
+
+Next, we need to find the weather probabilities two weeks after the initial rainy day by calculating \( P^{14} \):
+
+\[
+P^{14} = (P^7)^2 = \begin{bmatrix}
+\frac{11}{64} & \frac{19}{64} & \frac{19}{64} \\
+\frac{19}{64} & \frac{23}{64} & \frac{23}{64} \\
+\frac{19}{64} & \frac{23}{64} & \frac{23}{64}
+\end{bmatrix} \begin{bmatrix}
+\frac{11}{64} & \frac{19}{64} & \frac{19}{64} \\
+\frac{19}{64} & \frac{23}{64} & \frac{23}{64} \\
+\frac{19}{64} & \frac{23}{64} & \frac{23}{64}
+\end{bmatrix} = \begin{bmatrix}
+\frac{27}{128} & \frac{37}{128} & \frac{37}{128} \\
+\frac{37}{128} & \frac{47}{128} & \frac{47}{128} \\
+\frac{37}{128} & \frac{47}{128} & \frac{47}{128}
+\end{bmatrix}.
+\]
+
+Now, we can find the weather probabilities two weeks after the initial rainy day:
+
+\[
+\mathbf{x}_{14} = P^{14} \mathbf{x}_0 = \begin{bmatrix}
+\frac{27}{128} & \frac{37}{128} & \frac{37}{128} \\
+\frac{37}{128} & \frac{47}{128} & \frac{47}{128} \\
+\frac{37}{128} & \frac{47}{128} & \frac{47}{128}
+\end{bmatrix}
+\begin{bmatrix}
+0 \\
+0 \\
+1
+\end{bmatrix}
+= \begin{bmatrix}
+\frac{37}{128} \\
+\frac{47}{128} \\
+\frac{47}{128}
+\end{bmatrix}.
+\]
+
+### Part b
+
+Use the method in Problem 2 to compute a steady-state vector for \( P \). As in Problem 2, there will be infinitely many choices for your vector. Choose one that is a probability vector, i.e, so that all the entries add up to 1. How does this steady-state vector compare with your answers in part (a) above? What does the steady-state vector say about the weather in the Land of Oz in the long run?
+
+To find the steady-state vector \( \mathbf{s} \) for \( P \), we solve \( P\mathbf{s} = \mathbf{s} \). This can be written as \( (P - I)\mathbf{s} = \mathbf{0} \):
+
+\[
+P - I = \begin{bmatrix}
+0 & \frac{1}{4} & \frac{1}{4} \\
+\frac{1}{2} & \frac{1}{4} & \frac{1}{2} \\
+\frac{1}{2} & \frac{1}{2} & \frac{1}{4}
+\end{bmatrix} - \begin{bmatrix}
+1 & 0 & 0 \\
+0 & 1 & 0 \\
+0 & 0 & 1
+\end{bmatrix} = \begin{bmatrix}
+-1 & \frac{1}{4} & \frac{1}{4} \\
+\frac{1}{2} & -\frac{3}{4} & \frac{1}{2} \\
+\frac{1}{2} & \frac{1}{2} & -\frac{3}{4}
+\end{bmatrix}.
+\]
+
+We need to solve \( (P - I)\mathbf{s} = \mathbf{0} \). Let \( \mathbf{s} = \begin{bmatrix} s_1 \\ s_2 \\ s_3 \end{bmatrix} \):
+
+\[
+\begin{cases}
+- s_1 + \frac{1}{4}s_2 + \frac{1}{4}s_3 = 0 \\
+\frac{1}{2}s_1 - \frac{3}{4}s_2 + \frac{1}{2}s_3 = 0 \\
+\frac{1}{2}s_1 + \frac{1}{2}s_2 - \frac{3}{4}s_3 = 0
+\end{cases}
+\]
+
+Also, the sum of the entries in \( \mathbf{s} \) should be 1:
+
+\[
+s_1 + s_2 + s_3 = 1.
+\]
+
+Solving this system of equations, we find:
+
+From the first equation:
+\[
+- s_1 + \frac{1}{4}s_2 + \frac{1}{4}s_3 = 0 \implies s_1 = \frac{1}{4}s_2 + \frac{1}{4}s_3.
+\]
+
+From the second equation:
+\[
+\frac{1}{2}s_1 - \frac{3}{4}s_2 + \frac{1}{2}s_3 = 0 \implies s_1 = \frac{3}{2}s_2 - s_3.
+\]
+
+Combining the two equations:
+\[
+\frac{1}{4}s_2 + \frac{1}{4}s_3 = \frac{3}{2}s_2 - s_3 \implies \frac{1}{4}s_3 + s_3 = \frac{3}{2}s_2 - \frac{1}{4}s_2 \implies s_3 = 2s_2.
+\]
+
+Now using the normalization condition:
+\[
+s_1 + s_2 + s_3 = 1 \implies \frac{1}{4}s_2 + \frac{1}{4}s_3 + s_3 = 1 \implies \frac{1}{4}s_2 + \frac{1}{4}(2s_2) + 2s_2 = 1 \implies 2.5s_2 = 1 \implies s_2 = \frac{2}{5}.
+\]
+
+Finally, we find \( s_1 \) and \( s_3 \):
+\[
+s_3 = 2s_2 = 2 \cdot \frac{2}{5} = \frac{4}{5}, \quad s_1 = \frac{1}{4}s_2 + \frac{1}{4}s_3 = \frac{1}{4} \cdot \frac{2}{5} + \frac{1}{4} \cdot \frac{4}{5} = \frac{1}{10} + \frac{2}{10} = \frac{3}{10}.
+\]
+
+Therefore, the steady-state vector is:
+\[
+\mathbf{s} = \begin{bmatrix} \frac{3}{10} \\ \frac{2}{5} \\ \frac{4}{5} \end{bmatrix}.
+\]
+
+This steady-state vector compares with the probabilities found in part (a) above. The steady-state vector indicates that in the long run, the weather in the Land of Oz will have a 30% chance of being sunny, a 40% chance of being cloudy, and an 80% chance of being rainy. This shows that rainy weather is the most likely outcome in the long run.
+
+***
+<strong>Jakob, Cameron, Isaac</strong>
+
+
